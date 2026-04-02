@@ -1,7 +1,7 @@
 # OpenKore MCP Bridge
 Basically it is LLM way to control Ragnarok Online player via OpenKore bot using MCP.
 
-MCP (Model Context Protocol) SSE server built directly into the OpenKore plugin — no external dependencies (no Node.js, no Python).
+MCP (Model Context Protocol) SSE server built directly into the OpenKore plugin — no external dependencies
 
 [![img](doc/media/demo.gif)](http://www.youtube.com/watch?v=h1rifMwjxFo)
 
@@ -47,8 +47,9 @@ No middleware. The plugin IS the server.
 | `ping` | Health check |
 
 ## Installation
+_(I did everything on debian, please report issues on win and others)_
 
-1. Ensure the `JSON` Perl module is installed:
+1. (optional) Ensure the `JSON` Perl module is installed:
    ```bash
    perl -MJSON -e 1
    ```
@@ -64,7 +65,7 @@ No middleware. The plugin IS the server.
    loadPlugins_list MCPBridge
    ```
 
-4. Start OpenKore. The server starts automatically on `http://127.0.0.1:5556`.
+4. Start OpenKore. The server starts automatically on `http://127.0.0.1:5556`, you will see in ok console - `[MCPBridge] MCP SSE on http://127.0.0.1:5556/sse`
 
 ## Configuration
 
@@ -79,11 +80,28 @@ In `.qwen/mcp.json` (or any MCP client config):
 }
 ```
 
+or 
+
+```
+{
+  "mcp": {
+    "openkore": {
+      "type": "remote",
+      "url": "http://localhost:5556/sse",
+      "enabled": true
+    }
+  }
+}
+```
+
 ## Usage
+Work mode is simple, LLM work in cycle of `wait_pm` tool, it has optional timeout param in seconds.
+After pm recieved LLM recognize it as prompt, and do stuff, then repeat.
 
 1. Configure the MCP client as shown above
-2. Set up the AI agent using the [RAGNAROK PLAYER](doc/RAGNAROK_PLAYER.md) role definition
-3. The agent will wait for PM commands and execute OpenKore tools to respond
+2. Start your AI agent.
+3. Prompt him [RAGNAROK PLAYER](doc/RAGNAROK_PLAYER.md) role definition and ask to start cycle
+4. The agent will wait for PM commands and execute OpenKore tools to respond
 
 ## Testing with curl
 
@@ -101,6 +119,7 @@ curl -X POST 'http://127.0.0.1:5556/message?sessionId=1' \
 
 ### Command Tools
 Every OpenKore console command is available as a tool (e.g., `move`, `stats`, `a`, `s`).
+Besides that, only custom tool is `wait_pm`, read about it in Usage section.
 
 ```json
 {
