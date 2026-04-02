@@ -20,7 +20,7 @@ my $PROTOCOL_VERSION = '2024-11-05';
 
 my $listen_sock;
 my %sessions;
-my %pending;   # буферизация входящих POST
+my %pending;   # incoming POST buffering
 my $next_sid = 1;
 my $tools_cache;
 my %pending_wait_pm;  # sid => { rpc_id, timeout_at }
@@ -58,7 +58,7 @@ sub start_listen {
 sub on_mainLoop {
     return unless $listen_sock;
 
-    # проверяем таймауты wait_pm
+    # wait_pm timeouts
     my $now = time();
     for my $sid (keys %pending_wait_pm) {
         my $w = $pending_wait_pm{$sid};
@@ -81,14 +81,14 @@ sub on_mainLoop {
         }
     }
 
-    # принимаем новые соединения
+    # accept new connections
     while (my $client = $listen_sock->accept()) {
         $client->blocking(0);
         my $fileno = fileno($client);
         $pending{$fileno} = { sock => $client, buf => '', done => 0 };
     }
 
-    # читаем данные из ожидающих соединений
+    # read data from waiting connections
     for my $fileno (keys %pending) {
         my $p = $pending{$fileno};
         next if $p->{done};
@@ -98,13 +98,13 @@ sub on_mainLoop {
         if (defined $n && $n > 0) {
             $p->{buf} .= $chunk;
         } elsif (defined $n && $n == 0) {
-            # соединение закрыто клиентом
+            # client closed conn
         } elsif (!$!{EAGAIN} && !$!{EWOULDBLOCK}) {
             delete $pending{$fileno};
             next;
         }
 
-        # проверяем что получили полный HTTP запрос
+        # Check if full request recieved
         my $buf = $p->{buf};
         my ($method, $uri) = $buf =~ /^(\w+)\s+(\S+)/;
         unless ($method && $uri) {
@@ -140,7 +140,7 @@ sub on_mainLoop {
                 next;
             }
 
-            # ищем разделитель заголовков/тела
+            # lookup for body/head split
             my $hdr_end = index($buf, "\r\n\r\n");
             next if $hdr_end < 0;
 
@@ -148,15 +148,15 @@ sub on_mainLoop {
             my $body_len = length($buf) - $body_start;
 
             if ($body_len < $cl) {
-                # ещё не всё прочитали
-                next unless ($n && $n == 0); # ждём ещё данные, или EOF
+                # didnt read everything yet
+                next unless ($n && $n == 0); # wait data or EOF
                 error "[MCPBridge] Incomplete POST: $body_len < $cl\n";
                 http_response($p->{sock}, 400, '{}');
                 delete $pending{$fileno};
                 next;
             }
 
-            # полный запрос
+            # full req
             $p->{done} = 1;
             my $body = substr($buf, $body_start, $cl);
 
@@ -186,7 +186,7 @@ sub on_mainLoop {
             my $result = dispatch($rpc_method, $params, $sid, $rpc_id);
 
             if (defined $rpc_id && !defined $result) {
-                # асинхронный тул (wait_pm) — ответ будет отправлен позже
+                # async tool (wait_pm) — answer will be sent later
                 http_response($p->{sock}, 200, '');
             } elsif (defined $rpc_id) {
                 my $resp = encode_json({
@@ -209,7 +209,7 @@ sub on_mainLoop {
             next;
         }
 
-        # неизвестный запрос
+        # unknown req
         http_response($p->{sock}, 404, '{}');
         delete $pending{$fileno};
     }
@@ -379,7 +379,7 @@ sub dispatch {
                 timeout_at => time() + $timeout,
             };
 
-            return undef;  # ответ будет отправлен из on_chat_priv или по таймауту
+            return undef;  # answer will be sent from on_chat_priv or by timeout
         }
 
         if ($name && exists $Commands::commands{$name}) {
@@ -390,11 +390,11 @@ sub dispatch {
                 $cmd .= ' ' . $args;
             }
 
-            # перехватываем вывод команды
+            # hook cmd input
             my $output = '';
             my $hook_id = Log::addHook(sub {
                 my ($type, $domain, $level, $gv, $msg) = @_;
-                # фильтруем логи самого плагина
+                # filter plugin logs
                 return if $msg =~ /^\[MCPBridge\]/;
                 $output .= $msg;
             });
