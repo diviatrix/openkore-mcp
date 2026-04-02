@@ -3,7 +3,7 @@ Basically it is LLM way to control Ragnarok Online player via OpenKore bot using
 
 MCP (Model Context Protocol) SSE server built directly into the OpenKore plugin — no external dependencies (no Node.js, no Python).
 
-![img](doc/media/demo.gif)
+[![img](doc/media/demo.gif)](http://www.youtube.com/watch?v=h1rifMwjxFo)
 
 ## Features
 
