@@ -149,5 +149,5 @@ Canned responses from `responses.txt` (e.g., `resp_authS`).
 - `MCPBridge.pl` — Main plugin (MCP SSE server)
 - `README.md` — This documentation
 
-## License
-Same as OpenKore (GPLv2+).
+[License](doc/license.txt)
+
